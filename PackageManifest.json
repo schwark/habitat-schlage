@@ -1,10 +1,21 @@
 {
   "packageName": "Schlage WiFi Locks",
-	"minimumHEVersion": "2.1.9",
-	"version": "1.0.1",
-	"licenseFile": "",
-	"releaseNotes": "",
+  "minimumHEVersion": "2.1.9",
+  "version": "1.0.0",
+  "licenseFile": "",
+  "releaseNotes": "",
   "author": "Schwark Satyavolu",
-	"documentationLink": "https://github.com/schwark/hubitat-schlage",
-	"communityLink": "https://community.hubitat.com/t/"
+  "documentationLink": "https://github.com/schwark/hubitat-schlage",
+  "communityLink": "https://community.hubitat.com/t/",
+  "apps": [
+    {
+      "id": "b8e1545f-58c6-4f21-a316-e56d26a553ba",
+      "name": "Schlage WiFi Locks",
+      "namespace": "schwark",
+      "location": "https://raw.githubusercontent.com/schwark/hubitat-schlage/main/schlage.groovy",
+      "required": true,
+      "oauth": false,
+      "primary": false
+    }
+  ]
 }
