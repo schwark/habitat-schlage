@@ -1,0 +1,10 @@
+{
+  "packageName": "Schlage WiFi Locks",
+	"minimumHEVersion": "2.1.9",
+	"version": "1.0.1",
+	"licenseFile": "",
+	"releaseNotes": "",
+  "author": "Schwark Satyavolu",
+	"documentationLink": "https://github.com/schwark/hubitat-schlage",
+	"communityLink": "https://community.hubitat.com/t/"
+}
