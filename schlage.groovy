@@ -41,7 +41,7 @@ def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
 
-def version() {"1.0.2"}
+def version() {"1.0.3"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -337,7 +337,7 @@ def schedule_renewal() {
 }
 
 def ensure_access_token() {
-    if(!state.tokens || !state.access_token_updated || now() - state.access_token_updated > state.tokens['ExpiresIn']) {
+    if(!state.tokens || !state.access_token_updated || now() - state.access_token_updated > state.tokens['ExpiresIn']*1000) {
         authenticate_user()
     }
 }
