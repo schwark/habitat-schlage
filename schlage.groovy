@@ -41,6 +41,27 @@ def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
 
+def version() {"1.0.1"}
+def appVersion() { return version() }
+def appName() { return "Schlage WiFi Locks" }
+
+definition(
+    name: "${appName()}",
+    namespace: "schwark",
+    author: "Schwark Satyavolu",
+    description: "This adds support for Schlage WiFi Locks",
+    category: "Convenience",
+    iconUrl: "https://play-lh.googleusercontent.com/7IH82e5JiqI2_a9oWndaDyBETXtV45a-QhW_0f-ekADl6W2A3Q0u_vEWQHfQF0D-Flg=w600-h300-pc0xffffff-pd",
+    iconX2Url: "https://play-lh.googleusercontent.com/7IH82e5JiqI2_a9oWndaDyBETXtV45a-QhW_0f-ekADl6W2A3Q0u_vEWQHfQF0D-Flg=w600-h300-pc0xffffff-pd",
+    singleInstance: true,
+    importUrl: "https://raw.githubusercontent.com/schwark/hubitat-schlage/main/schlage.groovy"
+)
+
+preferences {
+    page(name: "mainPage")
+    //page(name: "configPage")
+}
+
 def AWSSRP(username, password, pool_id, client_id, pool_region=null,
                 client='cognito-idp', client_secret=null) {
     def result = [:]
@@ -449,6 +470,7 @@ def update_locks() {
             ]
             state.locks[deviceId] = lock
             createChildDevice(it.name, deviceId)
+            getChildDevice(deviceId).sendEvent(name: 'lock', value: (it.attributes.lockState ? 'locked' : 'unlocked'))
             it.users.each {
                 user = [
                     name: it.friendlyName,
@@ -501,27 +523,6 @@ def authenticate_user() {
     })        
 }
 
-def version() {"1.0.0"}
-def appVersion() { return version() }
-def appName() { return "Schlage WiFi Locks" }
-
-definition(
-    name: "${appName()}",
-    namespace: "schwark",
-    author: "Schwark Satyavolu",
-    description: "This adds support for Schlage WiFi Locks",
-    category: "Convenience",
-    iconUrl: "https://play-lh.googleusercontent.com/7IH82e5JiqI2_a9oWndaDyBETXtV45a-QhW_0f-ekADl6W2A3Q0u_vEWQHfQF0D-Flg=w600-h300-pc0xffffff-pd",
-    iconX2Url: "https://play-lh.googleusercontent.com/7IH82e5JiqI2_a9oWndaDyBETXtV45a-QhW_0f-ekADl6W2A3Q0u_vEWQHfQF0D-Flg=w600-h300-pc0xffffff-pd",
-    singleInstance: true,
-    importUrl: "https://raw.githubusercontent.com/schwark/hubitat-schlage/main/schlage.groovy"
-)
-
-preferences {
-    page(name: "mainPage")
-    //page(name: "configPage")
-}
-
 def getFormat(type, myText=""){
     if(type == "section") return "<div style='color:#78bf35;font-weight: bold'>${myText}</div>"
     if(type == "hlight") return "<div style='color:#78bf35'>${myText}</div>"
@@ -572,6 +573,7 @@ def updated() {
         force = true
     }
     refresh(force)
+    runEvery1Minute('refresh')
 }
 
 def initialize() {
@@ -612,7 +614,7 @@ def componentRefresh(cd) {
 
 def refresh(force=false) {
     debug("refreshing Schlage Locks...")
-    if(!state.awssrp || force || true) state.awssrp = AWSSRP(username, password, POOL_ID(), CLIENT_ID(), POOL_REGION(), SERVICE_NAME(), CLIENT_SECRET())
+    state.awssrp = AWSSRP(username, password, POOL_ID(), CLIENT_ID(), POOL_REGION(), SERVICE_NAME(), CLIENT_SECRET())
     debug(dumpsrp(state.awssrp))
     ensure_access_token()
     debug(state.tokens)
