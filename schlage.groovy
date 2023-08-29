@@ -41,7 +41,7 @@ def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
 
-def version() {"1.0.1"}
+def version() {"1.0.2"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -627,8 +627,8 @@ private createChildDevice(label, id) {
     def createdDevice = getChildDevice(deviceId)
     def name = "Schlage Lock"
 
+    if(!label.contains(' Lock')) label = "${label} Lock"
     if(!createdDevice) {
-        if(!label.contains(' Lock')) label = "${label} Lock"
         try {
             def component = 'Generic Component Lock'
             // create the child device
