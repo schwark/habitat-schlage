@@ -41,7 +41,7 @@ def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
 
-def version() {"1.0.4"}
+def version() {"1.0.5"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -391,7 +391,8 @@ def send_lock_command(deviceId, command, data, closure) {
 def change_lock_state(deviceId, locked) {
     def lock = state.locks[deviceId]
     def wifi = is_wifi(deviceId)
-    def data = wifi ? [
+    def use_put = wifi || lockMethod == 'put'
+    def data = use_put ? [
         attributes: [
             lockState: locked
         ]
@@ -401,7 +402,7 @@ def change_lock_state(deviceId, locked) {
         state: locked,
         userId: lock.user        
     ]
-    return wifi ? schlage_api("devices/${deviceId}", data, 'PUT', {}) : send_lock_command(deviceId, "changelockstate", data, {})
+    return use_put ? schlage_api("devices/${deviceId}", data, 'PUT', {}) : send_lock_command(deviceId, "changelockstate", data, {})
 }
 
 def delete_code(deviceId, codeId) {
@@ -538,6 +539,7 @@ def mainPage(){
         section {
             input "debugMode", "bool", title: "Enable debugging", defaultValue: true
             input "allowUnlock", "bool", title: "Allow Unlocking", defaultValue: true
+            input "lockMethod", "enum", title: "Lock/Unlock Method", options: ['auto', 'put', 'post'], defaultValue: 'auto'
         }
         section(getFormat("header", "Login Information")) {
             input "username", "text", title: "Username", required: true
