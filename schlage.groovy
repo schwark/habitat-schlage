@@ -41,7 +41,7 @@ def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
 
-def version() {"1.0.5"}
+def version() {"1.0.6"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -391,7 +391,7 @@ def send_lock_command(deviceId, command, data, closure) {
 def change_lock_state(deviceId, locked) {
     def lock = state.locks[deviceId]
     def wifi = is_wifi(deviceId)
-    def use_put = wifi || lockMethod == 'put'
+    def use_put = (wifi && lockMethod == 'auto') || lockMethod == 'put'
     def data = use_put ? [
         attributes: [
             lockState: locked
