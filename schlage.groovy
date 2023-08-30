@@ -41,7 +41,7 @@ def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
 
-def version() {"1.0.3"}
+def version() {"1.0.4"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -445,7 +445,7 @@ def update_access_codes(deviceId=null) {
 
 def is_wifi(deviceId) {
     def lock = state.locks[deviceId]
-    if(lock.model.startsWith('be489') || lock.model.startsWith('be499')) return true
+    if(lock.model.startsWith('be489') || lock.model.startsWith('be499') || lock.model.startsWith('fe789')) return true
     return false
 }
 
@@ -537,6 +537,7 @@ def mainPage(){
     dynamicPage(name:"mainPage",install:true, uninstall:true){
         section {
             input "debugMode", "bool", title: "Enable debugging", defaultValue: true
+            input "allowUnlock", "bool", title: "Allow Unlocking", defaultValue: true
         }
         section(getFormat("header", "Login Information")) {
             input "username", "text", title: "Username", required: true
@@ -589,8 +590,10 @@ def uninstalled() {
 }
 
 def componentUnlock(cd) {
-    unlock(cd.deviceNetworkId)
-    cd.sendEvent(name:'lock', value: 'unlocked')
+    if(allowUnlock) {
+        unlock(cd.deviceNetworkId)
+        cd.sendEvent(name:'lock', value: 'unlocked')
+    }
 }
 
 def componentLock(cd) {
