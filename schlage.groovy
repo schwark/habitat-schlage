@@ -92,10 +92,10 @@ def LOG_MESSAGES() {
         '255': "History cleared"
     ]
 }
-def DEFAULT_UUID() { "ffff-ffff-ffff-ffffffffffff" }
+def DEFAULT_UUID() { /[0-9a-f]{8}\-[f0]{4}\-[f0]{4}\-[f0]{4}\-[f0]{12}/ }
 
 
-def version() {"1.0.10"}
+def version() {"1.0.11"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -580,13 +580,13 @@ def update_locks() {
 }
 
 def get_code_for_id(deviceId, id) {
-    if(!id || id.contains(DEFAULT_UUID())) return null
+    if(!id || id ==~ DEFAULT_UUID()) return null
     name = state.locks[deviceId].codes.find { it.value.id == id }?.name
     return name ? name : id
 }
 
 def get_user_for_id(deviceId, id) {
-    if(!id || id.contains(DEFAULT_UUID())) return null
+    if(!id || id ==~ DEFAULT_UUID()) return null
     name = state.locks[deviceId].users.find { it.value.id == id }?.name
     return name ? name : id
 }
