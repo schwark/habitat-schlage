@@ -95,7 +95,7 @@ def LOG_MESSAGES() {
 def DEFAULT_UUID() { "ffff-ffff-ffff-ffffffffffff" }
 
 
-def version() {"1.0.7"}
+def version() {"1.0.8"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -454,6 +454,7 @@ def change_lock_state(deviceId, locked) {
     def lock = state.locks[deviceId]
     def wifi = is_wifi(deviceId)
     def use_put = (wifi && lockMethod == 'auto') || lockMethod == 'put'
+    def control_device = lock.bridge ?: deviceId
     def data = use_put ? [
         attributes: [
             lockState: locked
@@ -464,12 +465,12 @@ def change_lock_state(deviceId, locked) {
         state: locked,
         userId: lock.user        
     ]
-    return use_put ? schlage_api("devices/${deviceId}", data, 'PUT', {}) : send_lock_command(deviceId, "changelockstate", data, {})
+    return use_put ? schlage_api("devices/${deviceId}", data, 'PUT', {}) : send_lock_command(control_device, "changelockstate", data, {})
 }
 
 def get_logs(deviceId) {
     def path = "devices/${deviceId}/logs"
-    state.last_log = state.last_log ?: Long(0)
+    state.last_log = state.last_log ?: Long(0L)
     debug(state.users)
     schlage_api(path, [sort: 'desc', limit: 10], 'GET') {
         json = it.data
@@ -553,6 +554,7 @@ def update_locks() {
                 cat: it.CAT,
                 user: it.users[0].identityId,
                 model: it.modelName,
+                bridge: it.relatedDevices ? it.relatedDevices[0].deviceId : null
                 codes: [:], 
                 users: [:]
             ]
