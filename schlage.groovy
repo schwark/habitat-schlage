@@ -16,6 +16,9 @@ import java.security.MessageDigest
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovyx.net.http.HttpResponseException
+import java.time.ZoneId
+import java.net.URLEncoder
+import java.time.Instant
 
 
 // https://github.com/aws/amazon-cognito-identity-js/blob/master/src/AuthenticationHelper.js#L22
@@ -40,8 +43,59 @@ def CLIENT_SECRET() { '1kfmt18bgaig51in4j4v1j3jbe7ioqtjhle5o6knqc5dat0tpuvo' }
 def POOL_REGION() { 'us-west-2' }
 def SERVICE_NAME() { 'cognito-idp' }
 def TIMEOUT() { 60 }
+def LOG_MESSAGES() {
+    [
+        '-1': "Unknown",
+        '0': "Unknown",
+        '1': "Locked by keypad",
+        '2': "Unlocked by keypad",
+        '3': "Locked by thumbturn",
+        '4': "Unlocked by thumbturn",
+        '5': "Locked by Schlage button",
+        '6': "Locked by mobile device",
+        '7': "Unlocked by mobile device",
+        '8': "Locked by time",
+        '9': "Unlocked by time",
+        '10': "Lock jammed",
+        '11': "Keypad disabled invalid code",
+        '12': "Alarm triggered",
+        '14': "Access code user added",
+        '15': "Access code user deleted",
+        '16': "Mobile user added",
+        '17': "Mobile user deleted",
+        '18': "Admin privilege added",
+        '19': "Admin privilege deleted",
+        '20': "Firmware updated",
+        '21': "Low battery indicated",
+        '22': "Batteries replaced",
+        '23': "Forced entry alarm silenced",
+        '27': "Hall sensor comm error",
+        '28': "FDR failed",
+        '29': "Critical battery state",
+        '30': "All access code deleted",
+        '32': "Firmware update failed",
+        '33': "Bluetooth firmware download failed",
+        '34': "WiFi firmware download failed",
+        '35': "Keypad disconnected",
+        '36': "WiFi AP disconnect",
+        '37': "WiFi host disconnect",
+        '38': "WiFi AP connect",
+        '39': "WiFi host connect",
+        '40': "User DB failure",
+        '48': "Passage mode activated",
+        '49': "Passage mode deactivated",
+        '52': "Unlocked by Apple key",
+        '53': "Locked by Apple key",
+        '54': "Motor jammed on fail",
+        '55': "Motor jammed off fail",
+        '56': "Motor jammed retries exceeded",
+        '255': "History cleared"
+    ]
+}
+def DEFAULT_UUID() { "ffff-ffff-ffff-ffffffffffff" }
 
-def version() {"1.0.6"}
+
+def version() {"1.0.7"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -332,11 +386,14 @@ def aws_cognito(awssrp, method, data=null, closure) {
 }
 
 def schedule_renewal() {
+    debug("updating last updated on token to ${now()}")
     state.access_token_updated = now()
     runIn(state.tokens['ExpiresIn']-300, renew_access_token)
 }
 
 def ensure_access_token() {
+    debug("token_updated : ${state.access_token_updated}")
+    debug("now : ${now()}")
     if(!state.tokens || !state.access_token_updated || now() - state.access_token_updated > state.tokens['ExpiresIn']*1000) {
         authenticate_user()
     }
@@ -375,6 +432,11 @@ def schlage_api(path, data=null, method=null, closure) {
     ]
     def uri = "${BASE_URI()}/${path}"
     method = method ?: (data ? 'POST' : 'GET')
+    if(data && 'GET' == method) {
+        params = data.collect {k,v -> "${URLEncoder.encode(k.toString())}=${URLEncoder.encode(v.toString())}"}.join('&')
+        uri = "${uri}?${params}"
+        data = null
+    }
     debug("uri: ${uri}, data: ${data}, method: ${method}")
     "http${method.toLowerCase().capitalize()}"([uri: uri, headers: headers, body: data, contentType: contentType, timeout: TIMEOUT()], closure)
 }
@@ -405,6 +467,31 @@ def change_lock_state(deviceId, locked) {
     return use_put ? schlage_api("devices/${deviceId}", data, 'PUT', {}) : send_lock_command(deviceId, "changelockstate", data, {})
 }
 
+def get_logs(deviceId) {
+    def path = "devices/${deviceId}/logs"
+    state.last_log = state.last_log ?: Long(0)
+    debug(state.users)
+    schlage_api(path, [sort: 'desc', limit: 10], 'GET') {
+        json = it.data
+        debug(json)
+        Long skipTime = 0
+        json.each {
+            Long log_time = it.message.secondsSinceEpoch
+            if(it.logId == state.last_log) skipTime = log_time
+            if(log_time <= skipTime) return
+            log_time = log_time*1000
+            def dt = new Date(log_time)
+            def user = get_user_for_id(deviceId, it.message.accessorUuid)
+            def code = get_code_for_id(deviceId, it.message.keypadUuid)
+            def message = LOG_MESSAGES()["${it.message.eventCode}"]
+            debug("${log_time} : ${message} : ${it.message.accessorUuid} : ${it.message.keypadUuid}")
+            message = "${dt} : ${message}${user ? ' by '+user.name : ''}${code ? ' with '+code.name : ''}"
+            log.info("[Schlage Locks] INFO: ${message}")
+        }
+        state.last_log = json[0].logId
+    }
+}
+
 def delete_code(deviceId, codeId) {
     schlage_api("devices/${deviceId}/storage/accesscode/${codeId}", null, 'DELETE') {
     }
@@ -425,11 +512,10 @@ def update_access_codes(deviceId=null) {
         deviceId = it
         schlage_api("devices/${deviceId}/storage/accesscode", null, null) {
             json = it.data
-            def counter = 0
+            def counter = json.size()
             json.each {
-                counter = counter + 1
                 code = [
-                    accesscodeId: it.accesscodeId,
+                    id: it.accesscodeId,
                     name: it.friendlyName,
                     code: it.accessCode,
                     notify: it.notification,
@@ -437,6 +523,7 @@ def update_access_codes(deviceId=null) {
                     device: deviceId,
                     position: counter
                 ]
+                counter = counter - 1
                 state.locks[deviceId].codes[it.accesscodeId] = code
             }
         }
@@ -472,18 +559,34 @@ def update_locks() {
             state.locks[deviceId] = lock
             createChildDevice(it.name, deviceId)
             getChildDevice(deviceId).sendEvent(name: 'lock', value: (it.attributes.lockState ? 'locked' : 'unlocked'))
+            def counter = 0
             it.users.each {
                 user = [
                     name: it.friendlyName,
                     id: it.identityId,
                     email: it.email,
-                    role: it.role
+                    role: it.role,
+                    position: counter
                 ]
+                counter = counter + 1
                 state.locks[deviceId].users[it.identityId] = user
             }
+            get_logs(deviceId)
         }
     }
     debug(state.locks)
+}
+
+def get_code_for_id(deviceId, id) {
+    if(!id || id.contains(DEFAULT_UUID())) return null
+    name = state.locks[deviceId].codes.find { it.value.id == id }?.name
+    return name ? name : id
+}
+
+def get_user_for_id(deviceId, id) {
+    if(!id || id.contains(DEFAULT_UUID())) return null
+    name = state.locks[deviceId].users.find { it.value.id == id }?.name
+    return name ? name : id
 }
 
 def authenticate_user() {
@@ -522,6 +625,14 @@ def authenticate_user() {
         else
             throw NotImplementedError("The ${response['ChallengeName']} challenge is not supported")
     })        
+}
+
+def date_to_local(date) {
+    return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()
+}
+
+def timestamp_to_date(timestamp) {
+    return Date.parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", timestamp.replaceAll('Z$', '+0000'))
 }
 
 def getFormat(type, myText=""){
@@ -610,7 +721,7 @@ def componentGetCodes(cd) {
 def componentDeleteCode(cd, position) {
     def deviceId = cd.deviceNetworkId
     def code = state.locks[deviceId].codes.find { it.position == position }
-    delete_code(deviceId, code.accesscodeId)
+    delete_code(deviceId, code.id)
 }
 
 def componentRefresh(cd) {
