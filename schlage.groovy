@@ -95,7 +95,7 @@ def LOG_MESSAGES() {
 def DEFAULT_UUID() { "ffff-ffff-ffff-ffffffffffff" }
 
 
-def version() {"1.0.9"}
+def version() {"1.0.10"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -554,7 +554,7 @@ def update_locks() {
                 cat: it.CAT,
                 user: it.users[0].identityId,
                 model: it.modelName,
-                bridge: it.relatedDevices ? it.relatedDevices[0].deviceId : null
+                bridge: it.relatedDevices ? it.relatedDevices[0].deviceId : null,
                 codes: [:], 
                 users: [:]
             ]
