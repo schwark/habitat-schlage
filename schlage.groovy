@@ -95,7 +95,7 @@ def LOG_MESSAGES() {
 def DEFAULT_UUID() { "ffff-ffff-ffff-ffffffffffff" }
 
 
-def version() {"1.0.8"}
+def version() {"1.0.9"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -486,7 +486,7 @@ def get_logs(deviceId) {
             def code = get_code_for_id(deviceId, it.message.keypadUuid)
             def message = LOG_MESSAGES()["${it.message.eventCode}"]
             debug("${log_time} : ${message} : ${it.message.accessorUuid} : ${it.message.keypadUuid}")
-            message = "${dt} : ${message}${user ? ' by '+user.name : ''}${code ? ' with '+code.name : ''}"
+            message = "${dt} : ${message}${user ? ' by '+user : ''}${code ? ' with '+code : ''}"
             log.info("[Schlage Locks] INFO: ${message}")
         }
         state.last_log = json[0].logId
