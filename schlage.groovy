@@ -95,7 +95,7 @@ def LOG_MESSAGES() {
 def DEFAULT_UUID() { /[0-9a-f]{8}\-[f0]{4}\-[f0]{4}\-[f0]{4}\-[f0]{12}/ }
 
 
-def version() {"1.0.11"}
+def version() {"1.0.12"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
@@ -423,6 +423,27 @@ def renew_access_token() {
     })
 }
 
+def updateAppleKeys() {
+    if(numAppleKeys) {
+        state.applekey = [:]
+        for(i in 1..numAppleKeys) {
+            def name = settings["applename${i}"]
+            def code = settings["applecode${i}"]
+            def key = settings["applekey${i}"]
+            state.applekey[name] = [code: code, key: key]
+        }
+        debug(state.applekey)
+    }
+}
+
+def get_apple_name(id) {
+    def result = id
+    state.applekey?.each { k,v ->
+        if(v?.code == id || v?.key == id) result = k
+    }
+    return result
+}
+
 def schlage_api(path, data=null, method=null, closure) {
     def access_token = state.tokens['AccessToken']
     def contentType = 'application/json'
@@ -475,7 +496,7 @@ def get_logs(deviceId) {
     schlage_api(path, [sort: 'desc', limit: 10], 'GET') {
         json = it.data
         debug(json)
-        Long skipTime = 0
+        Long skipTime = 0L
         json.each {
             Long log_time = it.message.secondsSinceEpoch
             if(it.logId == state.last_log) skipTime = log_time
@@ -486,7 +507,7 @@ def get_logs(deviceId) {
             def code = get_code_for_id(deviceId, it.message.keypadUuid)
             def message = LOG_MESSAGES()["${it.message.eventCode}"]
             debug("${log_time} : ${message} : ${it.message.accessorUuid} : ${it.message.keypadUuid}")
-            message = "${dt} : ${message}${user ? ' by '+user : ''}${code ? ' with '+code : ''}"
+            message = "${dt} : ${message}${user ? ' by '+user : ''}${code ? ' by '+get_apple_name(code) : ''}"
             log.info("[Schlage Locks] INFO: ${message}")
         }
         state.last_log = json[0].logId
@@ -580,14 +601,16 @@ def update_locks() {
 }
 
 def get_code_for_id(deviceId, id) {
-    if(!id || id ==~ DEFAULT_UUID()) return null
+    if(!id) return null
     name = state.locks[deviceId].codes.find { it.value.id == id }?.name
+    if(!name && id ==~ DEFAULT_UUID()) return null
     return name ? name : id
 }
 
 def get_user_for_id(deviceId, id) {
-    if(!id || id ==~ DEFAULT_UUID()) return null
+    if(!id) return null
     name = state.locks[deviceId].users.find { it.value.id == id }?.name
+    if(!name && id ==~ DEFAULT_UUID()) return null
     return name ? name : id
 }
 
@@ -644,7 +667,6 @@ def getFormat(type, myText=""){
     if(type == "redhead") return "<div style='color:#ffffff;background-color:red;text-align:center'>${myText}</div>"
     if(type == "line") return "\n<hr style='background-color:#78bf35; height: 2px; border: 0;'></hr>"
     if(type == "centerBold") return "<div style='font-weight:bold;text-align:center'>${myText}</div>"    
-    
 }
 
 def mainPage(){
@@ -658,12 +680,23 @@ def mainPage(){
             input "username", "text", title: "Username", required: true
             input "password", "text", title: "Password", required: true
         }
+        section("Apple Keys (if Apple HomeKey capable lock)"){
+            input "numAppleKeys", "number", title: "Number of Apple Keys", defaultValue: 0, submitOnChange: true, range: "0..25"
+            if(numAppleKeys){
+                for(i in 1..numAppleKeys){
+                    section(getFormat("header", "Apple Key ${i}")){
+                        input("applename${i}", "text", title: getFormat("section", "Name of User:"))
+                        input("applecode${i}", "text", title: getFormat("section", "HomeKit Code Name of User (Homekit-000... from app or logs):"))
+                        input("applekey${i}", "text", title: getFormat("section", "Apple Key Code of User (long dashed string from logs):"))
+                    }
+                }
+            }
+        }
     }
 }
 
 def configPage(){
-    refresh()
-    dynamicPage(name: "configPage", title: "Configure/Edit Presets:") {
+    dynamicPage(name: "configPage", title: "Configure/Edit Apple Keys:") {
         section(""){input("numPresets", "number", title: getFormat("section", "How many presets?:"), submitOnChange: true, range: "1..25")}
             if(numPresets){
                 for(i in 1..numPresets){
@@ -688,6 +721,7 @@ def updated() {
         state.last_password = password
         force = true
     }
+    updateAppleKeys()
     refresh(force)
     runEvery1Minute('refresh')
 }
