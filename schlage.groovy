@@ -491,7 +491,7 @@ def change_lock_state(deviceId, locked) {
 
 def get_logs(deviceId) {
     def path = "devices/${deviceId}/logs"
-    state.last_log = state.last_log ?: Long(0L)
+    state.last_log = state.last_log ?: 0L
     debug(state.users)
     schlage_api(path, [sort: 'desc', limit: 10], 'GET') {
         json = it.data
