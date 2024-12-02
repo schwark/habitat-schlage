@@ -95,7 +95,7 @@ def LOG_MESSAGES() {
 def DEFAULT_UUID() { /[0-9a-f]{8}\-[f0]{4}\-[f0]{4}\-[f0]{4}\-[f0]{12}/ }
 
 
-def version() {"1.0.12"}
+def version() {"1.0.13"}
 def appVersion() { return version() }
 def appName() { return "Schlage WiFi Locks" }
 
