@@ -602,16 +602,18 @@ def update_locks() {
 
 def get_code_for_id(deviceId, id) {
     if(!id) return null
-    if(id == 'ffffffff-ffff-ffff-ffff-ffffffffffff') return ''
-    name = state.locks[deviceId].codes.find { it.value.id == id }?.name
+    user = state.locks[deviceId].codes.find { it.value.id == id }
+    if(!user) return ''
+    name = user.hasProperty('name') ? user.name : ''
     if(!name && id ==~ DEFAULT_UUID()) return null
     return name ? name : id
 }
 
 def get_user_for_id(deviceId, id) {
     if(!id) return null
-    if(id == 'ffffffff-ffff-ffff-ffff-ffffffffffff') return ''
-    name = state.locks[deviceId].users.find { it.value.id == id }?.name
+    user = state.locks[deviceId].codes.find { it.value.id == id }
+    if(!user) return ''
+    name = user.hasProperty('name') ? user.name : ''
     if(!name && id ==~ DEFAULT_UUID()) return null
     return name ? name : id
 }
